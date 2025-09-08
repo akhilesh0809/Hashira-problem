@@ -1,5 +1,5 @@
 ﻿# Hashira-problem
  OUTPUTS : 
- FOR TEST CASE = 1 : Constant term (c) of the polynomial = 3.000000000000
- FOR TEST CASE = 2 : Constant term (c) of the polynomial = -2446068826122304000.000000000000
+Constant term (c) of the polynomial = 3.0000000000000000000000000000000000000000000000201
+Constant term (c) of the polynomial = -2446068833740041100.4333333333333333333333439637486
 
