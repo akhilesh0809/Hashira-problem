@@ -1,4 +1,6 @@
+import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.math.MathContext;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -6,16 +8,14 @@ import java.util.ArrayList;
 public class Main {
     public static void main(String[] args) throws Exception {
         String json = new String(Files.readAllBytes(Paths.get("sample2.json")));
-        json = json.replaceAll("\\s+", "");
-
+        json = json.replaceAll("\\s+", ""); 
         int nIndex = json.indexOf("\"n\":");
         int n = Integer.parseInt(json.substring(nIndex + 4, json.indexOf(",", nIndex)));
 
         int kIndex = json.indexOf("\"k\":");
         int k = Integer.parseInt(json.substring(kIndex + 4, json.indexOf("}", kIndex)));
-
-        ArrayList<Double> xs = new ArrayList<>();
-        ArrayList<Double> ys = new ArrayList<>();
+        ArrayList<BigDecimal> xs = new ArrayList<>();
+        ArrayList<BigDecimal> ys = new ArrayList<>();
 
         for (int i = 1; i <= n; i++) {
             String key = String.valueOf(i);
@@ -29,58 +29,60 @@ public class Main {
             int valueIndex = json.indexOf("\"value\":", keyIndex);
             int endIndex = json.indexOf("}", valueIndex);
             String valueStr = json.substring(valueIndex + 8, endIndex).replace("\"", "");
-
             BigInteger decimalValue = new BigInteger(valueStr, base);
 
-            xs.add(Double.valueOf(key));
-            ys.add(decimalValue.doubleValue());
+            xs.add(BigDecimal.valueOf(i));
+            ys.add(new BigDecimal(decimalValue));
         }
 
         int degree = k - 1;
-        double[][] A = new double[degree + 1][degree + 2];
-
+        BigDecimal[][] A = new BigDecimal[degree + 1][degree + 2];
+        MathContext mc = new MathContext(50); 
         for (int row = 0; row <= degree; row++) {
             for (int col = 0; col <= degree; col++) {
-                double sum = 0;
+                BigDecimal sum = BigDecimal.ZERO;
                 for (int i = 0; i < xs.size(); i++) {
-                    sum += Math.pow(xs.get(i), row + col);
+                    sum = sum.add(xs.get(i).pow(row + col, mc), mc);
                 }
                 A[row][col] = sum;
             }
-            double sumY = 0;
+            BigDecimal sumY = BigDecimal.ZERO;
             for (int i = 0; i < xs.size(); i++) {
-                sumY += ys.get(i) * Math.pow(xs.get(i), row);
+                sumY = sumY.add(ys.get(i).multiply(xs.get(i).pow(row, mc), mc), mc);
             }
             A[row][degree + 1] = sumY;
         }
 
-        double[] coeffs = gaussianSolve(A, degree + 1);
-        System.out.printf("Constant term (c) of the polynomial = %.12f%n", coeffs[0]);
+        BigDecimal[] coeffs = gaussianSolveBig(A, degree + 1, mc);
+        System.out.println("Constant term (c) of the polynomial = " + coeffs[0].toPlainString());
     }
 
-    static double[] gaussianSolve(double[][] A, int n) {
+
+    static BigDecimal[] gaussianSolveBig(BigDecimal[][] A, int n, MathContext mc) {
         for (int i = 0; i < n; i++) {
             int maxRow = i;
             for (int k = i + 1; k < n; k++) {
-                if (Math.abs(A[k][i]) > Math.abs(A[maxRow][i])) {
+                if (A[k][i].abs().compareTo(A[maxRow][i].abs()) > 0) {
                     maxRow = k;
                 }
             }
-            double[] temp = A[i]; A[i] = A[maxRow]; A[maxRow] = temp;
+            BigDecimal[] temp = A[i]; A[i] = A[maxRow]; A[maxRow] = temp;
 
             for (int k = i + 1; k < n; k++) {
-                double factor = A[k][i] / A[i][i];
+                if (A[i][i].compareTo(BigDecimal.ZERO) == 0) continue;
+                BigDecimal factor = A[k][i].divide(A[i][i], mc);
                 for (int j = i; j <= n; j++) {
-                    A[k][j] -= factor * A[i][j];
+                    A[k][j] = A[k][j].subtract(factor.multiply(A[i][j], mc), mc);
                 }
             }
         }
-        double[] x = new double[n];
+        BigDecimal[] x = new BigDecimal[n];
         for (int i = n - 1; i >= 0; i--) {
-            x[i] = A[i][n] / A[i][i];
-            for (int k = i - 1; k >= 0; k--) {
-                A[k][n] -= A[k][i] * x[i];
+            BigDecimal sum = A[i][n];
+            for (int j = i + 1; j < n; j++) {
+                sum = sum.subtract(A[i][j].multiply(x[j], mc), mc);
             }
+            x[i] = sum.divide(A[i][i], mc);
         }
         return x;
     }
